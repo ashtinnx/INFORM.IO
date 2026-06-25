@@ -189,7 +189,17 @@ def all_chats() -> List[int]:
 
 
 def esc(s: str) -> str:
-    return html.escape(s or "")
+    return html.escape(str(s or ""))
+
+
+def val(e, key: str, default=""):
+    """Read a field from either a dataclass Event or sqlite3.Row."""
+    try:
+        if isinstance(e, sqlite3.Row):
+            return e[key]
+        return getattr(e, key)
+    except Exception:
+        return default
 
 
 def bullets(items):
@@ -287,23 +297,33 @@ This may affect how investors think about interest rates, growth, inflation, or 
 
 
 def section_text(kind: str, e) -> str:
+    title = val(e, "title")
+    link = val(e, "link")
+    source = val(e, "source")
+    topic = val(e, "topic", "Macro")
+    confidence_value = val(e, "confidence", 70)
+    score_value = val(e, "score", 70)
+    novelty_value = val(e, "novelty", 70)
+
+    source_line = f'<b>Source:</b> <a href="{esc(link)}">{esc(source)}</a>'
+
     if kind == "why":
         return f"""<b>📖 Why This Matters</b>
 
-<b>{esc(e.title)}</b>
+<b>{esc(title)}</b>
 
-This matters because it can change expectations for inflation, interest rates, growth, or risk.
+This matters because it may change what people expect next for inflation, interest rates, growth, or financial risk.
 
 Plain English:
-When important economic news changes what investors expect next, prices in stocks, bonds, currencies, housing, and commodities can move quickly.
+When important news changes what investors think will happen next, prices in stocks, bonds, currencies, housing, and commodities can move quickly.
 
-<b>Source:</b> <a href="{esc(e.link)}">{esc(e.source)}</a>"""
+{source_line}"""
     if kind == "affects":
-        return "<b>🌍 What It Affects</b>\n\n" + "\n".join(f"• <b>{esc(k)}</b>: {esc(v)}" for k,v in topic_impacts(e.topic).items()) + f"\n\n<b>Source:</b> <a href=\"{esc(e.link)}\">{esc(e.source)}</a>"
+        return "<b>🌍 What It Affects</b>\n\n" + "\n".join(f"• <b>{esc(k)}</b>: {esc(v)}" for k,v in topic_impacts(topic).items()) + f"\n\n{source_line}"
     if kind == "how":
-        return "<b>⚙️ Cause and Effect</b>\n\n" + esc("\n↓\n".join(mechanism(e.topic))) + f"\n\n<b>Source:</b> <a href=\"{esc(e.link)}\">{esc(e.source)}</a>"
+        return "<b>⚙️ Cause and Effect</b>\n\n" + esc("\n↓\n".join(mechanism(topic))) + f"\n\n{source_line}"
     if kind == "opp":
-        items = opportunity(e.topic)
+        items = opportunity(topic)
         return f"""<b>📈 Opportunity Watch</b>
 
 These are not buy/sell signals. They are areas worth researching because this type of news often affects them first.
@@ -315,7 +335,7 @@ These are not buy/sell signals. They are areas worth researching because this ty
 • Are bonds, currencies, and stocks confirming the move?
 • Is this one data point or part of a trend?
 
-<b>Source:</b> <a href="{esc(e.link)}">{esc(e.source)}</a>"""
+{source_line}"""
     if kind == "hist":
         return f"""<b>📚 Historical Context</b>
 
@@ -324,9 +344,9 @@ Similar types of events have mattered in periods like 2008, 2011, 2018, 2020, an
 <b>Simple rule:</b>
 Do not copy the past exactly. Use it to understand possible paths.
 
-<b>Similarity score:</b> {max(55, e.confidence-8)}%
+<b>Similarity score:</b> {max(55, int(confidence_value)-8)}%
 
-<b>Source:</b> <a href="{esc(e.link)}">{esc(e.source)}</a>"""
+{source_line}"""
     if kind == "risks":
         return f"""<b>⚠️ Risks and Uncertainty</b>
 
@@ -340,9 +360,9 @@ The market may overreact to one headline.
 • Oil or currency moves
 • New geopolitical news
 
-<b>Confidence:</b> {e.confidence}%
+<b>Confidence:</b> {esc(confidence_value)}%
 
-<b>Source:</b> <a href="{esc(e.link)}">{esc(e.source)}</a>"""
+{source_line}"""
     if kind == "outlook":
         return f"""<b>🔮 Outlook</b>
 
@@ -355,7 +375,7 @@ Watch for confirmation from related data and central bank comments.
 <b>Next month:</b>
 The key question is whether this becomes a trend.
 
-<b>Source:</b> <a href="{esc(e.link)}">{esc(e.source)}</a>"""
+{source_line}"""
     if kind == "markets":
         return f"""<b>📊 Market View</b>
 
@@ -365,7 +385,17 @@ The key question is whether this becomes a trend.
 <b>Commodities:</b> Watch oil and gold for inflation/risk signals.
 <b>Real estate:</b> Watch mortgage-rate implications.
 
-<b>Source:</b> <a href="{esc(e.link)}">{esc(e.source)}</a>"""
+{source_line}"""
+    if kind == "confidence":
+        return f"""<b>✅ Confidence</b>
+
+Confidence: <b>{esc(confidence_value)}%</b>
+Novelty: <b>{esc(novelty_value)}%</b>
+Impact: <b>{esc(score_value)}/100</b>
+
+Plain English: this is how strong the signal looks based on topic, source quality, and likely economic relevance.
+
+{source_line}"""
     return "Section not found."
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -467,11 +497,15 @@ async def confidence(update, context):
 async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    kind, event_id = q.data.split(":", 1)
+    try:
+        kind, event_id = (q.data or "").split(":", 1)
+    except ValueError:
+        await q.message.reply_text("Button data was invalid. Run /news again.")
+        return
     with db() as conn:
         e = conn.execute("SELECT * FROM events WHERE id=?", (event_id,)).fetchone()
     if not e:
-        await q.edit_message_text("That event is no longer available. Run /news again.")
+        await q.message.reply_text("That event is no longer available. Run /news again.")
         return
     await q.message.reply_text(section_text(kind, e), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
