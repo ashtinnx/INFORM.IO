@@ -2,6 +2,39 @@ import sqlite3, hashlib
 from datetime import datetime, timezone
 from config import DB_PATH
 
+
+def _columns(conn, table):
+    try:
+        return {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    except Exception:
+        return set()
+
+def _add_column_if_missing(conn, table, column, definition):
+    cols = _columns(conn, table)
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+def migrate_db(conn):
+    # Safe migrations for users upgrading from older bot versions.
+    fact_cols = _columns(conn, "facts")
+    if fact_cols:
+        _add_column_if_missing(conn, "facts", "canonical_key", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "facts", "lifecycle_status", "TEXT DEFAULT 'monitoring'")
+        _add_column_if_missing(conn, "facts", "urgency_score", "INTEGER DEFAULT 50")
+        _add_column_if_missing(conn, "facts", "source_type", "TEXT DEFAULT 'unknown'")
+        _add_column_if_missing(conn, "facts", "source_region", "TEXT DEFAULT 'global'")
+        _add_column_if_missing(conn, "facts", "updated_at", "TEXT DEFAULT ''")
+        conn.execute("UPDATE facts SET canonical_key = title WHERE canonical_key = '' OR canonical_key IS NULL")
+        conn.execute("UPDATE facts SET updated_at = created_at WHERE updated_at = '' OR updated_at IS NULL")
+
+    source_cols = _columns(conn, "sources")
+    if source_cols:
+        _add_column_if_missing(conn, "sources", "source_type", "TEXT DEFAULT 'unknown'")
+        _add_column_if_missing(conn, "sources", "region", "TEXT DEFAULT 'global'")
+        _add_column_if_missing(conn, "sources", "success_count", "INTEGER DEFAULT 0")
+        _add_column_if_missing(conn, "sources", "error_count", "INTEGER DEFAULT 0")
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -98,6 +131,7 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_facts_created_at ON facts(created_at);
         CREATE INDEX IF NOT EXISTS idx_facts_canonical ON facts(canonical_key);
         """)
+        migrate_db(conn)
         seed_relationships(conn)
 
 def register_chat(chat_id:int):

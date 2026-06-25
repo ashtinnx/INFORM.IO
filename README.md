@@ -1,6 +1,16 @@
-# Economic Intelligence Bot V6.2 — Adaptive Economic OS
+# Economic Intelligence Bot V6.2.1 — Startup Fix + Adaptive Economic OS
 
 This version keeps the current bot design and adds the Adaptive Intelligence Engine.
+
+## V6.2.1 startup fix
+
+This patch fixes the issue where the bot may not respond to `/start`.
+
+Changes:
+- The bot starts Telegram polling first.
+- News refresh happens in the background instead of blocking startup.
+- Database migrations are added so older database files do not crash the app.
+- Scheduled daily/weekly report jobs are fixed for async execution.
 
 ## Main upgrades
 

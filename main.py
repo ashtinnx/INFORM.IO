@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from telegram import Update
@@ -113,7 +114,8 @@ def main():
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("Missing TELEGRAM_BOT_TOKEN environment variable.")
     init_db()
-    refresh_fact_database(max_per_feed=5, mode="startup")
+    # Do not refresh news before Telegram polling starts.
+    # This keeps /start responsive even if a feed is slow or an old DB needs migration.
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -138,8 +140,9 @@ def main():
 
     scheduler = AsyncIOScheduler(timezone=TIMEZONE)
     scheduler.add_job(adaptive_refresh_job, "interval", minutes=1)
-    scheduler.add_job(lambda: send_daily(app), CronTrigger(hour=DAILY_HOUR, minute=DAILY_MINUTE, timezone=TIMEZONE))
-    scheduler.add_job(lambda: send_weekly(app), CronTrigger(day_of_week="sun", hour=WEEKLY_HOUR, minute=WEEKLY_MINUTE, timezone=TIMEZONE))
+    scheduler.add_job(adaptive_refresh_job, "date")
+    scheduler.add_job(lambda: asyncio.create_task(send_daily(app)), CronTrigger(hour=DAILY_HOUR, minute=DAILY_MINUTE, timezone=TIMEZONE))
+    scheduler.add_job(lambda: asyncio.create_task(send_weekly(app)), CronTrigger(day_of_week="sun", hour=WEEKLY_HOUR, minute=WEEKLY_MINUTE, timezone=TIMEZONE))
     scheduler.start()
 
     logger.info("Economic Intelligence Bot V6.2 running.")

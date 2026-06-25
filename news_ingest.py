@@ -3,7 +3,7 @@ from config import RSS_FEEDS
 from database import insert_or_merge_fact, upsert_source, log_refresh
 from intelligence import build_fact_from_entry
 
-def refresh_fact_database(max_per_feed=8, mode="manual"):
+def refresh_fact_database(max_per_feed=4, mode="manual"):
     inserted = 0
     merged = 0
     errors = []
