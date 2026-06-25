@@ -1,89 +1,84 @@
-# Economic Intelligence Bot V5.2
+# Economic Intelligence Bot V6.2 — Adaptive Economic OS
 
-A Telegram economic intelligence bot designed for clear, useful, plain-English financial awareness.
+This version keeps the current bot design and adds the Adaptive Intelligence Engine.
 
-## What changed in V5.2
+## Main upgrades
 
-- Daily brief now runs at **5:00 PM local time**.
-- Weekly brief stays at **9:00 AM every Sunday**.
-- `/news daily` and `/news weekly` are clearly labeled so you can instantly tell which report type you are reading.
-- Simpler language throughout.
-- Every major alert includes expandable Telegram buttons:
-  - 📖 Why
-  - 🌍 Effects
-  - ⚙️ Mechanism
-  - 📈 Opportunities
-  - 📚 History
-  - ⚠️ Risks
-  - 🔮 Outlook
-  - 📊 Markets
-- `/help` and `/commands` show every available command.
-- Uses diversified sources instead of relying on one feed.
-- Uses Docker so Railway avoids the Python/mise issue.
+- Adaptive refresh system
+- Active market-hour refresh logic
+- Weekend refresh logic
+- High-priority economic release windows
+- Source balancing
+- Duplicate/near-duplicate filtering
+- Event lifecycle tracking
+- Database health score
+- Knowledge freshness score
+- Structured fact database
+- Plain-English responses
+- Daily brief at 5:00 PM local time
+- Weekly brief at 9:00 AM Sunday local time
+- Inline expansion buttons
+- `/help` and `/commands`
+- `/dbstatus`, `/sources`, `/graph`, `/facts`, `/refresh`, `/adaptive`
 
-## Deploy on Railway
-
-1. Extract this ZIP.
-2. Upload the files directly to your GitHub repo root.
-3. Redeploy your Railway service.
-4. Add this Railway variable:
+## Required Railway variable
 
 ```text
-TELEGRAM_BOT_TOKEN=your_botfather_token
+TELEGRAM_BOT_TOKEN=your_bot_token
 ```
 
-Optional variables:
+## Optional Railway variables
 
 ```text
 TIMEZONE=America/Edmonton
-DAILY_BRIEF_HOUR=17
-DAILY_BRIEF_MINUTE=0
-WEEKLY_BRIEF_DAY=sun
-WEEKLY_BRIEF_HOUR=9
-WEEKLY_BRIEF_MINUTE=0
-NEWS_CHECK_MINUTES=30
-MIN_ALERT_SCORE=78
+OPENAI_API_KEY=your_openai_key
+TAVILY_API_KEY=your_tavily_key
 ```
 
-5. In Telegram, send your bot:
+The bot works without OpenAI/Tavily, but `/ask` is much stronger with them.
 
-```text
-/start
-```
+## Update schedule
+
+The bot runs a lightweight adaptive monitor every minute. It only performs a full refresh when needed:
+
+| Situation | Target refresh |
+|---|---:|
+| Major scheduled release window | 1 minute |
+| Active market hours | 10 minutes |
+| Outside market hours | 30 minutes |
+| Weekend | 60 minutes |
 
 ## Commands
 
 ```text
-/news - latest high-impact headlines
-/news daily - clearly labeled daily news view
-/news weekly - clearly labeled weekly news view
-
-/daily - daily brief now
-/weekly - weekly brief now
-
-/why - why latest event matters
-/affects - what it affects
-/how - cause/effect chain
-/opportunity - areas to research
-/history - historical context
-/confidence - confidence score
-/risks - risks and uncertainty
-/outlook - what to watch next
-
-/dashboard - macro dashboard
-/crash - crash/risk monitor
-/calendar - upcoming economic events
-
+/start
+/help
+/commands
+/news
+/news today
+/news week
+/daily
+/weekly
+/why
+/affects
+/how
+/opportunity
+/history
+/confidence
+/risks
+/outlook
+/dashboard
+/crash
+/calendar
+/dbstatus
+/sources
+/facts inflation
+/graph oil
+/outcomes
+/adaptive
+/refresh
 /learn CPI
-/learn GDP
-/learn Yield Curve
-/learn QE
-/learn Bonds
-
 /search inflation
-/search oil
-/search unemployment
-
 /stocks
 /bonds
 /oil
@@ -91,12 +86,11 @@ MIN_ALERT_SCORE=78
 /forex
 /crypto
 /realestate
-
 /ask <question>
-/help
-/commands
 ```
 
-## Important note
+## Deploy
 
-This bot is for education and financial awareness. It does not give guaranteed trades or personal financial advice. Treat its “Opportunity Watch” section as research ideas, not buy/sell instructions.
+Upload the files in this ZIP directly to your GitHub repo root. Do not upload the folder itself.
+
+Railway will redeploy automatically if your repo is connected.
